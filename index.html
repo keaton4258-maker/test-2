@@ -4,75 +4,100 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Private Log</title>
+    <title>Lite Log</title>
     <style>
-        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; }
-        .input-area { border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 15px; }
-        textarea {
-            width: 100%; height: 80px; background: #000; color: #fff; border: 1px solid #333;
-            border-radius: 8px; padding: 10px; box-sizing: border-box; font-size: 16px; resize: none;
-        }
-        .post-btn {
-            background: #1d9bf0; color: #fff; border: none; padding: 8px 20px;
-            border-radius: 20px; font-weight: bold; float: right; margin-top: 10px;
-        }
-        .timeline { margin-top: 50px; }
-        .tweet { border-bottom: 1px solid #333; padding: 15px 0; animation: fadeIn 0.3s ease; }
-        .tweet-date { color: #71767b; font-size: 0.8rem; margin-bottom: 5px; }
-        .tweet-text { line-height: 1.4; word-wrap: break-word; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        body { background: #f0f2f5; color: #1c1e21; font-family: -apple-system, sans-serif; margin: 0; padding: env(safe-area-inset-top) 15px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .input-card { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px; }
+        textarea { width: 100%; height: 60px; border: none; font-size: 16px; outline: none; resize: none; }
+        .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+        .file-label { font-size: 1.2rem; cursor: pointer; color: #65676b; }
+        .post-btn { background: #007bff; color: #fff; border: none; padding: 6px 16px; border-radius: 18px; font-weight: bold; }
+        .timeline { margin-top: 20px; }
+        .tweet { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .tweet-date { color: #65676b; font-size: 0.75rem; margin-bottom: 8px; }
+        .tweet-img { width: 100%; border-radius: 8px; margin-top: 10px; }
+        .admin-tools { display: flex; gap: 10px; margin: 20px 0; font-size: 0.7rem; justify-content: center; }
+        .tool-link { color: #007bff; text-decoration: none; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div class="input-area">
-    <textarea id="noteInput" placeholder="今、何を考えてる？"></textarea>
-    <button class="post-btn" onclick="saveNote()">Post</button>
-    <div style="clear:both;"></div>
+<div class="container">
+    <div class="input-card">
+        <textarea id="noteInput" placeholder="何を記録する？"></textarea>
+        <div id="preview"></div>
+        <div class="actions">
+            <label class="file-label">🖼️<input type="file" id="imgInput" accept="image/*" style="display:none" onchange="previewImage()"></label>
+            <button class="post-btn" onclick="saveNote()">Post</button>
+        </div>
+    </div>
+
+    <div class="admin-tools">
+        <span class="tool-link" onclick="exportData()">Export (Backup)</span>
+        <label class="tool-link">Import<input type="file" style="display:none" onchange="importData(event)"></label>
+    </div>
+
+    <div id="timeline" class="timeline"></div>
 </div>
 
-<div id="timeline" class="timeline"></div>
-
 <script>
-    // 1. 保存処理
+    let currentImage = "";
+
+    function previewImage() {
+        const file = document.getElementById('imgInput').files[0];
+        const reader = new FileReader();
+        reader.onloadend = () => { currentImage = reader.result; document.getElementById('preview').innerHTML = `<img src="${currentImage}" style="width:50px;margin-top:5px;border-radius:4px;">`; };
+        if (file) reader.readAsDataURL(file);
+    }
+
     function saveNote() {
         const input = document.getElementById('noteInput');
         const text = input.value.trim();
-        if (!text) return;
+        if (!text && !currentImage) return;
+        if (navigator.vibrate) navigator.vibrate(50);
 
-        // バイブレーション（投稿の快感）
-        if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
+        const note = { id: Date.now(), text, img: currentImage, date: new Date().toLocaleString('ja-JP') };
+        const notes = JSON.parse(localStorage.getItem('my_lite_logs') || '[]');
+        notes.unshift(note);
+        localStorage.setItem('my_lite_logs', JSON.stringify(notes));
 
-        const note = {
-            id: Date.now(),
-            text: text,
-            date: new Date().toLocaleString('ja-JP')
-        };
-
-        // ローカルストレージに保存
-        const notes = JSON.parse(localStorage.getItem('my_notes') || '[]');
-        notes.unshift(note); // 先頭に追加
-        localStorage.setItem('my_notes', JSON.stringify(notes));
-
-        input.value = '';
+        input.value = ''; currentImage = ""; document.getElementById('preview').innerHTML = "";
         renderNotes();
     }
 
-    // 2. 描画処理
     function renderNotes() {
-        const timeline = document.getElementById('timeline');
-        const notes = JSON.parse(localStorage.getItem('my_notes') || '[]');
-        timeline.innerHTML = notes.map(n => `
+        const notes = JSON.parse(localStorage.getItem('my_lite_logs') || '[]');
+        document.getElementById('timeline').innerHTML = notes.map(n => `
             <div class="tweet">
                 <div class="tweet-date">${n.date}</div>
-                <div class="tweet-text">${n.text.replace(/\n/g, '<br>')}</div>
+                <div style="white-space:pre-wrap;">${n.text}</div>
+                ${n.img ? `<img src="${n.img}" class="tweet-img">` : ''}
             </div>
         `).join('');
     }
 
-    // 初回読み込み
+    function exportData() {
+        const data = localStorage.getItem('my_lite_logs');
+        const blob = new Blob([data], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `diary_backup_${Date.now()}.txt`;
+        a.click();
+    }
+
+    function importData(event) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if(confirm("既存のデータを上書きしてインポートしますか？")) {
+                localStorage.setItem('my_lite_logs', e.target.result);
+                renderNotes();
+            }
+        };
+        reader.readAsText(event.target.files[0]);
+    }
+
     renderNotes();
 </script>
-
 </body>
 </html>

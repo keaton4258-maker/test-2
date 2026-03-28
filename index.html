@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Private Log</title>
+    <style>
+        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; }
+        .input-area { border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 15px; }
+        textarea {
+            width: 100%; height: 80px; background: #000; color: #fff; border: 1px solid #333;
+            border-radius: 8px; padding: 10px; box-sizing: border-box; font-size: 16px; resize: none;
+        }
+        .post-btn {
+            background: #1d9bf0; color: #fff; border: none; padding: 8px 20px;
+            border-radius: 20px; font-weight: bold; float: right; margin-top: 10px;
+        }
+        .timeline { margin-top: 50px; }
+        .tweet { border-bottom: 1px solid #333; padding: 15px 0; animation: fadeIn 0.3s ease; }
+        .tweet-date { color: #71767b; font-size: 0.8rem; margin-bottom: 5px; }
+        .tweet-text { line-height: 1.4; word-wrap: break-word; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="input-area">
+    <textarea id="noteInput" placeholder="今、何を考えてる？"></textarea>
+    <button class="post-btn" onclick="saveNote()">Post</button>
+    <div style="clear:both;"></div>
+</div>
+
+<div id="timeline" class="timeline"></div>
+
+<script>
+    // 1. 保存処理
+    function saveNote() {
+        const input = document.getElementById('noteInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        // バイブレーション（投稿の快感）
+        if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
+
+        const note = {
+            id: Date.now(),
+            text: text,
+            date: new Date().toLocaleString('ja-JP')
+        };
+
+        // ローカルストレージに保存
+        const notes = JSON.parse(localStorage.getItem('my_notes') || '[]');
+        notes.unshift(note); // 先頭に追加
+        localStorage.setItem('my_notes', JSON.stringify(notes));
+
+        input.value = '';
+        renderNotes();
+    }
+
+    // 2. 描画処理
+    function renderNotes() {
+        const timeline = document.getElementById('timeline');
+        const notes = JSON.parse(localStorage.getItem('my_notes') || '[]');
+        timeline.innerHTML = notes.map(n => `
+            <div class="tweet">
+                <div class="tweet-date">${n.date}</div>
+                <div class="tweet-text">${n.text.replace(/\n/g, '<br>')}</div>
+            </div>
+        `).join('');
+    }
+
+    // 初回読み込み
+    renderNotes();
+</script>
+
+</body>
+</html>
